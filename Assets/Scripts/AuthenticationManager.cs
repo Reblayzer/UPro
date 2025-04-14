@@ -9,6 +9,7 @@ public class AuthenticationManager : MonoBehaviour
     [Header("UI Elements")]
     public TMP_InputField usernameInput;
     public TMP_InputField passwordInput;
+    public WalletManager walletManager;
     public Button registerButton;
     public Button loginButton;
     public TMP_Text feedbackText;
@@ -32,7 +33,6 @@ public class AuthenticationManager : MonoBehaviour
             return;
         }
 
-        // Check for uniqueness
         foreach (var user in users)
         {
             if (user.username == username)
@@ -40,16 +40,24 @@ public class AuthenticationManager : MonoBehaviour
                 feedbackText.text = "Nickname already exists.";
                 return;
             }
-            if (user.password == password)
-            {
-                feedbackText.text = "Password already used.";
-                return;
-            }
         }
 
-        // Create new user
-        users.Add(new User(username, password));
-        feedbackText.text = $"User '{username}' registered successfully.";
+        WalletStorage.SaveWallet(username, password);
+        var walletData = WalletStorage.LoadWallet(username, password);
+        if (walletData == null)
+        {
+            feedbackText.text = "⚠️ Wallet creation failed.";
+            return;
+        }
+
+        var newUser = new User(username, password)
+        {
+            hasWallet = true,
+            walletAddress = walletData.walletAddress
+        };
+
+        users.Add(newUser);
+        feedbackText.text = $"✅ Registered! Wallet: {walletData.walletAddress}";
         ClearInputs();
     }
 
@@ -64,8 +72,19 @@ public class AuthenticationManager : MonoBehaviour
             {
                 if (user.password == password)
                 {
-                    feedbackText.text = $"Login successful. Welcome, {username}!";
+                    // 🧠 Save user to session
                     SessionManager.Instance.currentUser = user;
+
+                    // 🔐 Load wallet from keystore
+                    bool walletLoaded = walletManager.LoadWallet(username, password);
+
+                    if (!walletLoaded)
+                    {
+                        feedbackText.text = "Wallet load failed. Corrupted or incorrect password?";
+                        return;
+                    }
+
+                    feedbackText.text = $"Login successful. Welcome, {username}!";
                     ClearInputs();
                     SceneManager.LoadScene("WorldSelection");
                     return;
@@ -80,6 +99,7 @@ public class AuthenticationManager : MonoBehaviour
 
         feedbackText.text = "User does not exist.";
     }
+
 
     void ClearInputs()
     {

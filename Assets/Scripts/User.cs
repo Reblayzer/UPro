@@ -9,6 +9,9 @@ public class User
     public Dictionary<string, WorldData> worlds = new Dictionary<string, WorldData>();
     public HashSet<string> fundedWorlds = new HashSet<string>();
 
+    public string walletAddress;
+    public bool hasWallet;
+
     public User(string username, string password)
     {
         this.username = username;
